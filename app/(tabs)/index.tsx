@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
   Switch,
   Platform,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,12 @@ export default function HomeScreen() {
   } = useApp();
   const { user } = useAuth();
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastIcon, setToastIcon] = useState<"flame" | "cafe">("flame");
+  const [toastColor, setToastColor] = useState(Colors.orange);
+  const toastAnim = useRef(new Animated.Value(-80)).current;
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const enRouteOrders = orders.filter((o) => o.status === "en_route");
   const upcomingOrders = orders.filter((o) => o.status === "upcoming");
@@ -35,14 +42,43 @@ export default function HomeScreen() {
 
   const webTopInset = Platform.OS === "web" ? 67 : 0;
 
+  const showToast = useCallback((msg: string, icon: "flame" | "cafe", color: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMessage(msg);
+    setToastIcon(icon);
+    setToastColor(color);
+    toastAnim.setValue(-80);
+    toastOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(toastAnim, { toValue: 0, useNativeDriver: true, tension: 100, friction: 10 }),
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+    toastTimer.current = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(toastAnim, { toValue: -80, duration: 250, useNativeDriver: true }),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start(() => setToastMessage(""));
+    }, 2500);
+  }, [toastAnim, toastOpacity]);
+
   const toggleFuel = (val: boolean) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setFuelRequested(val);
+    showToast(
+      val ? "Fuel stop requested - dispatch notified" : "Fuel stop request cancelled",
+      "flame",
+      Colors.orange
+    );
   };
 
   const toggleBreak = (val: boolean) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBreakRequested(val);
+    showToast(
+      val ? "Break requested - dispatch notified" : "Break request cancelled",
+      "cafe",
+      Colors.success
+    );
   };
 
   return (
@@ -186,6 +222,31 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {toastMessage ? (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            {
+              transform: [{ translateY: toastAnim }],
+              opacity: toastOpacity,
+              top: insets.top + 10 + webTopInset,
+            },
+          ]}
+        >
+          <View style={[styles.toastCard, { borderLeftColor: toastColor }]}>
+            <View style={[styles.toastIconCircle, { backgroundColor: toastColor + "18" }]}>
+              <Ionicons
+                name={toastIcon === "flame" ? "flame" : "cafe"}
+                size={18}
+                color={toastColor}
+              />
+            </View>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </Animated.View>
+      ) : null}
+
       <VoiceBotFAB />
     </View>
   );
@@ -387,5 +448,39 @@ const styles = StyleSheet.create({
     borderTopColor: "#F0F0F0",
     paddingTop: 10,
     gap: 8,
+  },
+  toastContainer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 999,
+  },
+  toastCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderLeftWidth: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  toastIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textPrimary,
   },
 });
