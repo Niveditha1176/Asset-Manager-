@@ -1,0 +1,43 @@
+System Role: You are a Senior React Native / Expo developer.
+Task: Build a high-fidelity frontend prototype for an urban logistics Driver App based on handwritten UI sketches.
+Color Palette: Professional and Neutral—Primary Blue (#2563EB), White (#FFFFFF), and Light Grey (#F3F4F6).
+
+Core Components to Build:
+
+Multi-State Homepage:
+
+Pre-Delivery (Home): A dashboard showing the driver's name, a "Request Fuel/Break" toggle, and a categorized task list: "En Route" (expandable order details), "Upcoming" (scrollable cards), and "Past Completed" (greyed out).
+
+En Route (Map View): A large map area with a floating "Voice Bot" bubble. Below the map, a sliding bottom sheet with Order Details (Customer name, Address, ETA, Time Window, and Package ID). Include a persistent sidebar for Profile, Settings, Notifications, and Logout.
+
+Compliance & Event Reporting:
+
+Post-Delivery Flow: Once a location is reached, show a screen with a "Delivery Proof" upload button and a "Report Exception" dropdown.
+
+Exception Reporting: Provide specific buttons/options for "Road Blocked," "Customer Not Home," "Return to Origin," and "Other" with a text field and photo proof option.
+
+Fuel Logging: A "Fuel Stop Reached" screen with two upload placeholders: "Bunk Meter Photo" and "Payment Screenshot".
+
+HR & Operations (Forms):
+
+Leave Application: A form with a calendar date picker, a reason dropdown, and a "Generate Ticket" button.
+
+Overtime Management: A form for "Hours Requested" (From/To time) and a "Request Overtime" button.
+
+Notification Center: A list of expandable alerts from the Dispatcher. Implement a "Swipe to Delete/Acknowledge" gesture for each notification.
+
+Dynamic Interactions (Mocked):
+
+Voice Bot: Place a circular floating action button (FAB) with a microphone icon on all main screens.
+
+Fuel Needed Logic: Include a "FUEL NEEDED" button. When clicked, it should simulate a status update to the dispatcher and visually insert a "Mock Fuel Stop" marker into the map route.
+
+Technical Requirements:
+
+Use Lucide-React for icons (Truck, Map, User, Fuel).
+
+Use Mock Data for the delivery sequence and notification list.
+
+Implement React Navigation (Bottom Tabs or Stack) to move between the Task List, Map View, and Forms.
+
+Ensure the UI matches the "human-like" navigation USP mentioned in the notes.
