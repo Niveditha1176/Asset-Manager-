@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,11 +9,15 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
@@ -25,9 +29,41 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_MIN = 200;
 const SHEET_MAX = SCREEN_HEIGHT * 0.55;
 
+function UrgentMarkerPulse() {
+  const pulseScale = useSharedValue(1);
+
+  React.useEffect(() => {
+    pulseScale.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: 800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+    opacity: 2 - pulseScale.value,
+  }));
+
+  return (
+    <View style={mapStyles.urgentMarkerContainer}>
+      <Animated.View style={[mapStyles.urgentMarkerPulse, pulseStyle]} />
+      <View style={mapStyles.urgentMarker}>
+        <Ionicons name="warning" size={14} color={Colors.white} />
+      </View>
+      <View style={mapStyles.urgentMarkerLabel}>
+        <Text style={mapStyles.urgentMarkerText}>URGENT</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { orders, fuelStopVisible } = useApp();
+  const { orders, fuelStopVisible, urgentMarkerVisible, urgentOrder } = useApp();
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -62,6 +98,13 @@ export default function MapScreen() {
           <View style={styles.routeLine} />
           <View style={styles.routeLineH} />
 
+          {urgentMarkerVisible && (
+            <View style={mapStyles.urgentRouteSeg}>
+              <View style={mapStyles.urgentRouteLineV} />
+              <View style={mapStyles.urgentRouteLineH} />
+            </View>
+          )}
+
           <View style={styles.startMarker}>
             <Ionicons name="navigate" size={16} color={Colors.white} />
           </View>
@@ -79,12 +122,19 @@ export default function MapScreen() {
             </View>
           )}
 
+          {urgentMarkerVisible && <UrgentMarkerPulse />}
+
           <View style={styles.mapOverlayTop}>
             <View style={styles.etaBanner}>
               <Ionicons name="navigate-outline" size={16} color={Colors.primary} />
               <Text style={styles.etaText}>
                 {enRouteOrder?.eta || "-- min"} away
               </Text>
+              {urgentMarkerVisible && (
+                <View style={mapStyles.etaUrgentBadge}>
+                  <Text style={mapStyles.etaUrgentText}>+URGENT</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -239,6 +289,91 @@ export default function MapScreen() {
     </View>
   );
 }
+
+const mapStyles = StyleSheet.create({
+  urgentMarkerContainer: {
+    position: "absolute",
+    top: "35%",
+    left: "30%",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  urgentMarkerPulse: {
+    position: "absolute",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(239, 68, 68, 0.25)",
+  },
+  urgentMarker: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: Colors.white,
+    shadowColor: Colors.danger,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  urgentMarkerLabel: {
+    position: "absolute",
+    top: -20,
+    backgroundColor: Colors.danger,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  urgentMarkerText: {
+    fontSize: 8,
+    fontFamily: "Inter_700Bold",
+    color: Colors.white,
+    letterSpacing: 1,
+  },
+  urgentRouteSeg: {
+    position: "absolute",
+    top: "30%",
+    left: "20%",
+    width: "40%",
+    height: "30%",
+  },
+  urgentRouteLineV: {
+    position: "absolute",
+    top: 0,
+    left: "30%",
+    width: 3,
+    height: "60%",
+    backgroundColor: Colors.danger,
+    borderRadius: 2,
+    opacity: 0.5,
+  },
+  urgentRouteLineH: {
+    position: "absolute",
+    top: "30%",
+    left: 0,
+    width: "55%",
+    height: 3,
+    backgroundColor: Colors.danger,
+    borderRadius: 2,
+    opacity: 0.5,
+  },
+  etaUrgentBadge: {
+    backgroundColor: Colors.danger + "18",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  etaUrgentText: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    color: Colors.danger,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {

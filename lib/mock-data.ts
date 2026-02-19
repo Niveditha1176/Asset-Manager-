@@ -8,6 +8,18 @@ export interface Order {
   status: "en_route" | "upcoming" | "completed";
   lat: number;
   lng: number;
+  isUrgent?: boolean;
+  weight?: string;
+  deadline?: string;
+}
+
+export interface UrgentOrderData {
+  order: Order;
+  currentRouteEta: string;
+  newRouteEta: string;
+  reason: string;
+  weight: string;
+  deadline: string;
 }
 
 export interface Notification {
@@ -25,6 +37,28 @@ export const DRIVER = {
   vehicle: "MH-12-AB-1234",
   hub: "Andheri East Hub",
   avatar: "RK",
+};
+
+export const URGENT_ORDER: UrgentOrderData = {
+  order: {
+    id: "ORD-7900",
+    customerName: "Deepak Verma",
+    address: "106, Emerald Heights, Khar West",
+    eta: "8 min",
+    timeWindow: "10:30 AM - 11:00 AM",
+    packageId: "PKG-44250",
+    status: "upcoming",
+    lat: 19.0725,
+    lng: 72.8350,
+    isUrgent: true,
+    weight: "4.2 kg",
+    deadline: "11:00 AM TODAY",
+  },
+  currentRouteEta: "1h 45m",
+  newRouteEta: "1h 52m",
+  reason: "Order is near your current location on the Bandra-Khar route. Minimal detour required.",
+  weight: "4.2 kg",
+  deadline: "11:00 AM TODAY",
 };
 
 export const ORDERS: Order[] = [

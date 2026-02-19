@@ -14,55 +14,67 @@ import {
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AppProvider } from "@/lib/app-context";
+import UrgentOverlay from "@/components/UrgentOverlay";
 import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="delivery-proof"
-        options={{
-          title: "Delivery Proof",
-          headerTintColor: Colors.primary,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        }}
-      />
-      <Stack.Screen
-        name="exception"
-        options={{
-          title: "Report Exception",
-          headerTintColor: Colors.danger,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        }}
-      />
-      <Stack.Screen
-        name="fuel-log"
-        options={{
-          title: "Fuel Log",
-          headerTintColor: Colors.orange,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        }}
-      />
-      <Stack.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          headerTintColor: Colors.primary,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        }}
-      />
-      <Stack.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          headerTintColor: Colors.primary,
-          headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
-        }}
-      />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerBackTitle: "Back" }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="delivery-proof"
+          options={{
+            title: "Delivery Proof",
+            headerTintColor: Colors.primary,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+        <Stack.Screen
+          name="exception"
+          options={{
+            title: "Report Exception",
+            headerTintColor: Colors.danger,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+        <Stack.Screen
+          name="fuel-log"
+          options={{
+            title: "Fuel Log",
+            headerTintColor: Colors.orange,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+        <Stack.Screen
+          name="profile"
+          options={{
+            title: "Profile",
+            headerTintColor: Colors.primary,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            headerTintColor: Colors.primary,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+        <Stack.Screen
+          name="urgent-order"
+          options={{
+            title: "Urgent Order",
+            headerTintColor: Colors.danger,
+            headerTitleStyle: { fontFamily: "Inter_600SemiBold" },
+          }}
+        />
+      </Stack>
+      <UrgentOverlay />
+    </>
   );
 }
 
