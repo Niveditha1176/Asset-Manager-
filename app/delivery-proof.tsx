@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,8 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Alert,
+  Modal,
+  Animated,
   Platform,
 } from "react-native";
 import { router } from "expo-router";
@@ -23,6 +24,9 @@ export default function DeliveryProofScreen() {
   const [exceptionCategory, setExceptionCategory] = useState("");
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [notes, setNotes] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
+  const popupScale = useRef(new Animated.Value(0)).current;
+  const popupOpacity = useRef(new Animated.Value(0)).current;
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -39,19 +43,31 @@ export default function DeliveryProofScreen() {
 
   const handleSubmit = () => {
     if (!selectedAction) {
-      Alert.alert("Required", "Please upload delivery proof or report an exception.");
+      if (Platform.OS === "web") {
+        alert("Please upload delivery proof or report an exception.");
+      } else {
+        import("react-native").then(({ Alert }) =>
+          Alert.alert("Required", "Please upload delivery proof or report an exception.")
+        );
+      }
       return;
     }
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (selectedAction === "proof") {
-      Alert.alert("Delivery Confirmed", "Proof has been uploaded successfully.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-    } else {
-      Alert.alert("Exception Reported", "Your report has been submitted.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-    }
+    setShowPopup(true);
+    Animated.parallel([
+      Animated.spring(popupScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
+      Animated.timing(popupOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(popupScale, { toValue: 0.8, duration: 200, useNativeDriver: true }),
+        Animated.timing(popupOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start(() => {
+        setShowPopup(false);
+        router.replace("/(tabs)/");
+      });
+    }, 3000);
   };
 
   return (
@@ -169,6 +185,54 @@ export default function DeliveryProofScreen() {
           <Text style={styles.submitBtnText}>Submit</Text>
         </Pressable>
       </ScrollView>
+
+      <Modal visible={showPopup} transparent animationType="none">
+        <View style={styles.popupOverlay}>
+          <Animated.View style={[styles.popupCard, { transform: [{ scale: popupScale }], opacity: popupOpacity }]}>
+            <View style={styles.popupIconCircle}>
+              <Feather name="check" size={32} color={Colors.white} />
+            </View>
+            <Text style={styles.popupTitle}>
+              {selectedAction === "proof" ? "Delivery Confirmed" : "Exception Reported"}
+            </Text>
+            <Text style={styles.popupSubtitle}>Submitted Successfully</Text>
+
+            <View style={styles.popupDivider} />
+
+            <View style={styles.popupDetail}>
+              <Text style={styles.popupLabel}>Type</Text>
+              <Text style={styles.popupValue}>
+                {selectedAction === "proof" ? "Proof of Delivery" : "Exception Report"}
+              </Text>
+            </View>
+
+            {selectedAction === "exception" && exceptionCategory ? (
+              <View style={styles.popupDetail}>
+                <Text style={styles.popupLabel}>Category</Text>
+                <Text style={styles.popupValue}>{exceptionCategory}</Text>
+              </View>
+            ) : null}
+
+            {selectedAction === "proof" ? (
+              <View style={styles.popupDetail}>
+                <Text style={styles.popupLabel}>Photo</Text>
+                <Text style={styles.popupValue}>Uploaded</Text>
+              </View>
+            ) : null}
+
+            {notes.trim() ? (
+              <View style={styles.popupDetail}>
+                <Text style={styles.popupLabel}>Notes</Text>
+                <Text style={[styles.popupValue, { flex: 1 }]} numberOfLines={3}>{notes}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.popupDivider} />
+            <Text style={styles.popupRedirectText}>Redirecting to home...</Text>
+          </Animated.View>
+        </View>
+      </Modal>
+
       <VoiceBotFAB />
     </View>
   );
@@ -338,5 +402,71 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_700Bold",
     color: Colors.white,
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  popupCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+  },
+  popupIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.success,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  popupSubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.success,
+    marginBottom: 16,
+  },
+  popupDivider: {
+    height: 1,
+    backgroundColor: "#F0F0F0",
+    width: "100%",
+    marginVertical: 14,
+  },
+  popupDetail: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingVertical: 6,
+  },
+  popupLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.darkGrey,
+  },
+  popupValue: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  popupRedirectText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.darkGrey,
+    marginTop: 4,
   },
 });

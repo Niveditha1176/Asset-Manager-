@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,8 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Alert,
+  Modal,
+  Animated,
   Platform,
 } from "react-native";
 import { router } from "expo-router";
@@ -20,6 +21,9 @@ export default function FuelLogScreen() {
   const [proofUploaded, setProofUploaded] = useState(false);
   const [selectedAction, setSelectedAction] = useState<"proof" | "complaint" | null>(null);
   const [notes, setNotes] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
+  const popupScale = useRef(new Animated.Value(0)).current;
+  const popupOpacity = useRef(new Animated.Value(0)).current;
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -34,16 +38,32 @@ export default function FuelLogScreen() {
   };
 
   const handleSubmit = () => {
-    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    if (selectedAction === "complaint") {
-      Alert.alert("Complaint Filed", "Your fuel stop complaint has been recorded.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-    } else {
-      Alert.alert("Fuel Log Submitted", "Your fuel stop has been recorded.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+    if (!selectedAction) {
+      if (Platform.OS === "web") {
+        alert("Please upload fuel proof or report a complaint.");
+      } else {
+        import("react-native").then(({ Alert }) =>
+          Alert.alert("Required", "Please upload fuel proof or report a complaint.")
+        );
+      }
+      return;
     }
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowPopup(true);
+    Animated.parallel([
+      Animated.spring(popupScale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
+      Animated.timing(popupOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(popupScale, { toValue: 0.8, duration: 200, useNativeDriver: true }),
+        Animated.timing(popupOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start(() => {
+        setShowPopup(false);
+        router.replace("/(tabs)/");
+      });
+    }, 3000);
   };
 
   return (
@@ -117,9 +137,11 @@ export default function FuelLogScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.submitBtn,
+            !selectedAction && styles.submitBtnDisabled,
             { transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
           onPress={handleSubmit}
+          disabled={!selectedAction}
         >
           <Text style={styles.submitBtnText}>Submit</Text>
         </Pressable>
@@ -131,6 +153,47 @@ export default function FuelLogScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      <Modal visible={showPopup} transparent animationType="none">
+        <View style={styles.popupOverlay}>
+          <Animated.View style={[styles.popupCard, { transform: [{ scale: popupScale }], opacity: popupOpacity }]}>
+            <View style={styles.popupIconCircle}>
+              <Feather name="check" size={32} color={Colors.white} />
+            </View>
+            <Text style={styles.popupTitle}>
+              {selectedAction === "proof" ? "Fuel Log Submitted" : "Complaint Filed"}
+            </Text>
+            <Text style={styles.popupSubtitle}>Submitted Successfully</Text>
+
+            <View style={styles.popupDivider} />
+
+            <View style={styles.popupDetail}>
+              <Text style={styles.popupLabel}>Type</Text>
+              <Text style={styles.popupValue}>
+                {selectedAction === "proof" ? "Fuel Receipt / Proof" : "Fuel Station Complaint"}
+              </Text>
+            </View>
+
+            {selectedAction === "proof" ? (
+              <View style={styles.popupDetail}>
+                <Text style={styles.popupLabel}>Photo</Text>
+                <Text style={styles.popupValue}>Uploaded</Text>
+              </View>
+            ) : null}
+
+            {notes.trim() ? (
+              <View style={styles.popupDetail}>
+                <Text style={styles.popupLabel}>Notes</Text>
+                <Text style={[styles.popupValue, { flex: 1 }]} numberOfLines={3}>{notes}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.popupDivider} />
+            <Text style={styles.popupRedirectText}>Redirecting to home...</Text>
+          </Animated.View>
+        </View>
+      </Modal>
+
       <VoiceBotFAB />
     </View>
   );
@@ -240,6 +303,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  submitBtnDisabled: {
+    opacity: 0.5,
+  },
   submitBtnText: {
     fontSize: 17,
     fontFamily: "Inter_700Bold",
@@ -259,5 +325,71 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: Colors.primary,
     flex: 1,
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  popupCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 28,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+  },
+  popupIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.success,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  popupSubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.success,
+    marginBottom: 16,
+  },
+  popupDivider: {
+    height: 1,
+    backgroundColor: "#F0F0F0",
+    width: "100%",
+    marginVertical: 14,
+  },
+  popupDetail: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingVertical: 6,
+  },
+  popupLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.darkGrey,
+  },
+  popupValue: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textPrimary,
+    textAlign: "right",
+  },
+  popupRedirectText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.darkGrey,
+    marginTop: 4,
   },
 });
