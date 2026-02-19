@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   Pressable,
+  TextInput,
   Alert,
   Platform,
 } from "react-native";
@@ -13,135 +14,124 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import Colors from "@/constants/colors";
+import VoiceBotFAB from "@/components/VoiceBotFAB";
 
 export default function FuelLogScreen() {
-  const [meterPhoto, setMeterPhoto] = useState(false);
-  const [paymentPhoto, setPaymentPhoto] = useState(false);
+  const [proofUploaded, setProofUploaded] = useState(false);
+  const [selectedAction, setSelectedAction] = useState<"proof" | "complaint" | null>(null);
+  const [notes, setNotes] = useState("");
 
-  const pickMeterPhoto = async () => {
+  const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing: true,
       quality: 0.8,
     });
     if (!result.canceled) {
-      setMeterPhoto(true);
-    }
-  };
-
-  const pickPaymentPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      setPaymentPhoto(true);
+      setProofUploaded(true);
+      setSelectedAction("proof");
     }
   };
 
   const handleSubmit = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Fuel Log Submitted", "Your fuel stop has been recorded.", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
+    if (selectedAction === "complaint") {
+      Alert.alert("Complaint Filed", "Your fuel stop complaint has been recorded.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    } else {
+      Alert.alert("Fuel Log Submitted", "Your fuel stop has been recorded.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    }
   };
 
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroSection}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="flame" size={30} color={Colors.orange} />
+        <View style={styles.titleSection}>
+          <Ionicons name="flame" size={24} color={Colors.orange} />
+          <Text style={styles.titleText}>Fuel Stop Reached</Text>
+        </View>
+
+        <Pressable
+          style={[
+            styles.actionBtn,
+            proofUploaded && styles.actionBtnDone,
+            selectedAction === "proof" && styles.actionBtnSelected,
+          ]}
+          onPress={pickImage}
+        >
+          <View style={[styles.iconBox, proofUploaded && styles.iconBoxDone]}>
+            <Feather
+              name={proofUploaded ? "check" : "camera"}
+              size={22}
+              color={proofUploaded ? Colors.white : Colors.orange}
+            />
           </View>
-          <Text style={styles.heroTitle}>Fuel Stop Reached</Text>
-          <Text style={styles.heroSubtitle}>
-            Upload the required photos to log your fuel stop
-          </Text>
-        </View>
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>Upload Proof</Text>
+            <Text style={styles.actionSubtext}>
+              {proofUploaded ? "Photo uploaded" : "Upload fuel receipt or meter reading"}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={Colors.darkGrey} />
+        </Pressable>
 
-        <View style={styles.uploadsContainer}>
-          <Pressable
-            style={[styles.uploadCard, meterPhoto && styles.uploadCardDone]}
-            onPress={pickMeterPhoto}
-          >
-            <View style={[styles.uploadIconBox, meterPhoto && styles.uploadIconBoxDone]}>
-              <Feather
-                name={meterPhoto ? "check" : "camera"}
-                size={24}
-                color={meterPhoto ? Colors.white : Colors.orange}
-              />
-            </View>
-            <View style={styles.uploadInfo}>
-              <Text style={styles.uploadTitle}>Bunk Meter Photo</Text>
-              <Text style={styles.uploadSubtext}>
-                {meterPhoto ? "Photo uploaded" : "Take a photo of the meter reading"}
-              </Text>
-            </View>
-            <Feather
-              name="chevron-right"
-              size={20}
-              color={meterPhoto ? Colors.success : Colors.darkGrey}
-            />
-          </Pressable>
+        <Text style={styles.orText}>(or)</Text>
 
-          <Pressable
-            style={[styles.uploadCard, paymentPhoto && styles.uploadCardDone]}
-            onPress={pickPaymentPhoto}
-          >
-            <View style={[styles.uploadIconBox, paymentPhoto && styles.uploadIconBoxDone]}>
-              <Feather
-                name={paymentPhoto ? "check" : "credit-card"}
-                size={24}
-                color={paymentPhoto ? Colors.white : Colors.orange}
-              />
-            </View>
-            <View style={styles.uploadInfo}>
-              <Text style={styles.uploadTitle}>Payment Screenshot</Text>
-              <Text style={styles.uploadSubtext}>
-                {paymentPhoto ? "Screenshot uploaded" : "Upload payment receipt"}
-              </Text>
-            </View>
-            <Feather
-              name="chevron-right"
-              size={20}
-              color={paymentPhoto ? Colors.success : Colors.darkGrey}
-            />
-          </Pressable>
-        </View>
+        <Pressable
+          style={[
+            styles.actionBtn,
+            selectedAction === "complaint" && styles.actionBtnComplaint,
+          ]}
+          onPress={() => setSelectedAction("complaint")}
+        >
+          <View style={[styles.iconBox, { backgroundColor: Colors.danger + "15" }]}>
+            <Feather name="alert-triangle" size={22} color={Colors.danger} />
+          </View>
+          <View style={styles.actionInfo}>
+            <Text style={styles.actionTitle}>Report Complaints</Text>
+            <Text style={styles.actionSubtext}>Report issues at fuel station</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={Colors.darkGrey} />
+        </Pressable>
 
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: meterPhoto && paymentPhoto ? "100%" : meterPhoto || paymentPhoto ? "50%" : "0%",
-              },
-            ]}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Text</Text>
+          <TextInput
+            style={styles.textArea}
+            placeholder="Add notes or description..."
+            placeholderTextColor="#9CA3AF"
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
           />
         </View>
-        <Text style={styles.progressText}>
-          {meterPhoto && paymentPhoto
-            ? "All photos uploaded"
-            : `${(meterPhoto ? 1 : 0) + (paymentPhoto ? 1 : 0)} of 2 photos uploaded`}
-        </Text>
 
         <Pressable
           style={({ pressed }) => [
             styles.submitBtn,
-            !(meterPhoto && paymentPhoto) && styles.submitBtnDisabled,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] },
+            { transform: [{ scale: pressed ? 0.98 : 1 }] },
           ]}
           onPress={handleSubmit}
-          disabled={!(meterPhoto && paymentPhoto)}
         >
-          <Feather name="upload" size={18} color={Colors.white} />
-          <Text style={styles.submitBtnText}>Submit Fuel Log</Text>
+          <Text style={styles.submitBtnText}>Submit</Text>
         </Pressable>
+
+        <View style={styles.noteBox}>
+          <Feather name="info" size={14} color={Colors.primary} />
+          <Text style={styles.noteText}>
+            After completion, you will be redirected to the homepage.
+          </Text>
+        </View>
       </ScrollView>
+      <VoiceBotFAB />
     </View>
   );
 }
@@ -151,114 +141,123 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.lightGrey,
   },
-  heroSection: {
+  titleSection: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 32,
-    marginTop: 10,
+    gap: 10,
+    marginBottom: 24,
+    marginTop: 8,
   },
-  heroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.orange + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  heroTitle: {
-    fontSize: 24,
+  titleText: {
+    fontSize: 22,
     fontFamily: "Inter_700Bold",
     color: Colors.textPrimary,
-    marginBottom: 6,
   },
-  heroSubtitle: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: Colors.darkGrey,
-    textAlign: "center",
-  },
-  uploadsContainer: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  uploadCard: {
+  actionBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 18,
-    gap: 16,
-    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    gap: 14,
+    borderWidth: 2,
     borderColor: Colors.light.border,
+    marginBottom: 8,
   },
-  uploadCardDone: {
+  actionBtnDone: {
     borderColor: Colors.success + "50",
     backgroundColor: Colors.success + "08",
   },
-  uploadIconBox: {
-    width: 52,
-    height: 52,
+  actionBtnSelected: {
+    borderColor: Colors.orange,
+  },
+  actionBtnComplaint: {
+    borderColor: Colors.danger,
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
     borderRadius: 14,
     backgroundColor: Colors.orange + "15",
     alignItems: "center",
     justifyContent: "center",
   },
-  uploadIconBoxDone: {
+  iconBoxDone: {
     backgroundColor: Colors.success,
   },
-  uploadInfo: {
+  actionInfo: {
     flex: 1,
   },
-  uploadTitle: {
-    fontSize: 15,
+  actionTitle: {
+    fontSize: 16,
     fontFamily: "Inter_600SemiBold",
     color: Colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  uploadSubtext: {
-    fontSize: 12,
+  actionSubtext: {
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
     color: Colors.darkGrey,
   },
-  progressBar: {
-    height: 6,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 3,
-    marginBottom: 8,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: Colors.success,
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: Colors.darkGrey,
+  orText: {
     textAlign: "center",
-    marginBottom: 28,
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.darkGrey,
+    marginVertical: 8,
+  },
+  inputGroup: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  textArea: {
+    backgroundColor: Colors.white,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textPrimary,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    minHeight: 100,
   },
   submitBtn: {
-    flexDirection: "row",
+    backgroundColor: Colors.orange,
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
-    backgroundColor: Colors.orange,
-    paddingVertical: 16,
-    borderRadius: 14,
     shadowColor: Colors.orange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
-  submitBtnDisabled: {
-    opacity: 0.5,
-  },
   submitBtnText: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: "Inter_700Bold",
     color: Colors.white,
+  },
+  noteBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: Colors.primaryLight,
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  noteText: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.primary,
+    flex: 1,
   },
 });

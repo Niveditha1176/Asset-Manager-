@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -14,56 +15,23 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withRepeat,
-  withSequence,
-  withTiming,
-  Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useApp } from "@/lib/app-context";
+import { useAuth } from "@/lib/auth-context";
+import LeafletMap from "@/components/LeafletMap";
 import VoiceBotFAB from "@/components/VoiceBotFAB";
 import { router } from "expo-router";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const SHEET_MIN = 200;
+const SHEET_MIN = 180;
 const SHEET_MAX = SCREEN_HEIGHT * 0.55;
-
-function UrgentMarkerPulse() {
-  const pulseScale = useSharedValue(1);
-
-  React.useEffect(() => {
-    pulseScale.value = withRepeat(
-      withSequence(
-        withTiming(1.5, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-    opacity: 2 - pulseScale.value,
-  }));
-
-  return (
-    <View style={mapStyles.urgentMarkerContainer}>
-      <Animated.View style={[mapStyles.urgentMarkerPulse, pulseStyle]} />
-      <View style={mapStyles.urgentMarker}>
-        <Ionicons name="warning" size={14} color={Colors.white} />
-      </View>
-      <View style={mapStyles.urgentMarkerLabel}>
-        <Text style={mapStyles.urgentMarkerText}>URGENT</Text>
-      </View>
-    </View>
-  );
-}
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { orders, fuelStopVisible, urgentMarkerVisible, urgentOrder } = useApp();
+  const { user, logout } = useAuth();
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -85,59 +53,73 @@ export default function MapScreen() {
     });
   };
 
+  const mapMarkers = useMemo(() => {
+    const markers: any[] = [];
+
+    markers.push({
+      lat: 13.0475,
+      lng: 80.2090,
+      label: "You (Driver)",
+      color: Colors.primary,
+      type: "driver",
+    });
+
+    orders
+      .filter((o) => o.status !== "completed")
+      .forEach((o) => {
+        markers.push({
+          lat: o.lat,
+          lng: o.lng,
+          label: `${o.id} - ${o.customerName}`,
+          color: o.status === "en_route" ? Colors.danger : o.isUrgent ? "#FF6B00" : Colors.warning,
+          type: "order",
+        });
+      });
+
+    if (fuelStopVisible) {
+      markers.push({
+        lat: 13.0067,
+        lng: 80.2571,
+        label: "Fuel Stop - Indian Oil, Adyar",
+        color: Colors.orange,
+        type: "fuel",
+      });
+    }
+
+    if (urgentMarkerVisible && urgentOrder) {
+      markers.push({
+        lat: urgentOrder.order.lat,
+        lng: urgentOrder.order.lng,
+        label: `URGENT: ${urgentOrder.order.customerName}`,
+        color: Colors.danger,
+        type: "order",
+      });
+    }
+
+    return markers;
+  }, [orders, fuelStopVisible, urgentMarkerVisible, urgentOrder]);
+
+  const handleCallCustomer = () => {
+    if (enRouteOrder?.phone) {
+      Linking.openURL(`tel:${enRouteOrder.phone}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    setSidebarOpen(false);
+    await logout();
+  };
+
   return (
     <View style={styles.container}>
-      <View style={[styles.mapArea, { paddingTop: insets.top + webTopInset }]}>
-        <View style={styles.mapPlaceholder}>
-          <View style={styles.mapGrid}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <View key={i} style={styles.mapGridLine} />
-            ))}
-          </View>
-
-          <View style={styles.routeLine} />
-          <View style={styles.routeLineH} />
-
-          {urgentMarkerVisible && (
-            <View style={mapStyles.urgentRouteSeg}>
-              <View style={mapStyles.urgentRouteLineV} />
-              <View style={mapStyles.urgentRouteLineH} />
-            </View>
-          )}
-
-          <View style={styles.startMarker}>
-            <Ionicons name="navigate" size={16} color={Colors.white} />
-          </View>
-
-          <View style={styles.endMarker}>
-            <Feather name="map-pin" size={16} color={Colors.white} />
-          </View>
-
-          {fuelStopVisible && (
-            <View style={styles.fuelMarker}>
-              <Ionicons name="flame" size={14} color={Colors.white} />
-              <View style={styles.fuelLabel}>
-                <Text style={styles.fuelLabelText}>Fuel Stop</Text>
-              </View>
-            </View>
-          )}
-
-          {urgentMarkerVisible && <UrgentMarkerPulse />}
-
-          <View style={styles.mapOverlayTop}>
-            <View style={styles.etaBanner}>
-              <Ionicons name="navigate-outline" size={16} color={Colors.primary} />
-              <Text style={styles.etaText}>
-                {enRouteOrder?.eta || "-- min"} away
-              </Text>
-              {urgentMarkerVisible && (
-                <View style={mapStyles.etaUrgentBadge}>
-                  <Text style={mapStyles.etaUrgentText}>+URGENT</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
+      <View style={[styles.mapArea, { paddingTop: 0 }]}>
+        <LeafletMap
+          markers={mapMarkers}
+          center={{ lat: 13.0475, lng: 80.2400 }}
+          zoom={13}
+          showRoute
+          style={{ flex: 1, marginTop: insets.top + webTopInset }}
+        />
 
         <Pressable
           style={[styles.sidebarToggle, { top: insets.top + 16 + webTopInset }]}
@@ -146,40 +128,45 @@ export default function MapScreen() {
           <Feather name={sidebarOpen ? "x" : "menu"} size={22} color={Colors.textPrimary} />
         </Pressable>
 
+        <View style={[styles.topRight, { top: insets.top + 16 + webTopInset }]}>
+          <Pressable style={styles.topIconBtn} onPress={() => router.push("/fuel-log")}>
+            <Ionicons name="flame-outline" size={20} color={Colors.orange} />
+          </Pressable>
+          <Pressable
+            style={styles.topIconBtn}
+            onPress={() => {
+              if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          >
+            <Ionicons name="volume-high-outline" size={20} color={Colors.primary} />
+          </Pressable>
+        </View>
+
         {sidebarOpen && (
           <View style={[styles.sidebar, { top: insets.top + 60 + webTopInset }]}>
             <Pressable
               style={styles.sidebarItem}
-              onPress={() => {
-                setSidebarOpen(false);
-                router.push("/profile");
-              }}
+              onPress={() => { setSidebarOpen(false); router.push("/profile"); }}
             >
               <Feather name="user" size={20} color={Colors.textPrimary} />
               <Text style={styles.sidebarText}>Profile</Text>
             </Pressable>
             <Pressable
               style={styles.sidebarItem}
-              onPress={() => {
-                setSidebarOpen(false);
-                router.push("/settings");
-              }}
+              onPress={() => { setSidebarOpen(false); router.push("/settings"); }}
             >
               <Feather name="settings" size={20} color={Colors.textPrimary} />
               <Text style={styles.sidebarText}>Settings</Text>
             </Pressable>
             <Pressable
               style={styles.sidebarItem}
-              onPress={() => {
-                setSidebarOpen(false);
-                router.push("/(tabs)/notifications");
-              }}
+              onPress={() => { setSidebarOpen(false); router.push("/(tabs)/notifications"); }}
             >
               <Feather name="bell" size={20} color={Colors.textPrimary} />
               <Text style={styles.sidebarText}>Notifications</Text>
             </Pressable>
             <View style={styles.sidebarDivider} />
-            <Pressable style={styles.sidebarItem}>
+            <Pressable style={styles.sidebarItem} onPress={handleLogout}>
               <Feather name="log-out" size={20} color={Colors.danger} />
               <Text style={[styles.sidebarText, { color: Colors.danger }]}>Logout</Text>
             </Pressable>
@@ -190,6 +177,9 @@ export default function MapScreen() {
       <Animated.View style={[styles.bottomSheet, sheetStyle]}>
         <Pressable onPress={toggleSheet} style={styles.sheetHandle}>
           <View style={styles.handleBar} />
+          <Text style={styles.slideHint}>
+            {sheetExpanded ? "Slide down to see map" : "Slide up for order details"}
+          </Text>
         </Pressable>
 
         <ScrollView
@@ -224,21 +214,20 @@ export default function MapScreen() {
                   </View>
                 </View>
 
-                <View style={styles.detailItem}>
-                  <Feather name="clock" size={16} color={Colors.darkGrey} />
-                  <View>
-                    <Text style={styles.detailLabel}>ETA</Text>
-                    <Text style={[styles.detailValue, { color: Colors.primary }]}>
-                      {enRouteOrder.eta}
-                    </Text>
+                <View style={styles.detailRow}>
+                  <View style={[styles.detailItem, { flex: 1 }]}>
+                    <Feather name="clock" size={16} color={Colors.darkGrey} />
+                    <View>
+                      <Text style={styles.detailLabel}>ETA</Text>
+                      <Text style={[styles.detailValue, { color: Colors.primary }]}>{enRouteOrder.eta}</Text>
+                    </View>
                   </View>
-                </View>
-
-                <View style={styles.detailItem}>
-                  <Feather name="calendar" size={16} color={Colors.darkGrey} />
-                  <View>
-                    <Text style={styles.detailLabel}>Time Window</Text>
-                    <Text style={styles.detailValue}>{enRouteOrder.timeWindow}</Text>
+                  <View style={[styles.detailItem, { flex: 1 }]}>
+                    <Feather name="calendar" size={16} color={Colors.darkGrey} />
+                    <View>
+                      <Text style={styles.detailLabel}>Window</Text>
+                      <Text style={styles.detailValue}>{enRouteOrder.timeWindow}</Text>
+                    </View>
                   </View>
                 </View>
 
@@ -249,6 +238,13 @@ export default function MapScreen() {
                     <Text style={styles.detailValue}>{enRouteOrder.packageId}</Text>
                   </View>
                 </View>
+              </View>
+
+              <View style={styles.contactRow}>
+                <Pressable style={styles.contactBtn} onPress={handleCallCustomer}>
+                  <Feather name="phone" size={16} color={Colors.primary} />
+                  <Text style={styles.contactBtnText}>Call Customer</Text>
+                </Pressable>
               </View>
 
               <View style={styles.actionRow}>
@@ -290,91 +286,6 @@ export default function MapScreen() {
   );
 }
 
-const mapStyles = StyleSheet.create({
-  urgentMarkerContainer: {
-    position: "absolute",
-    top: "35%",
-    left: "30%",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
-  urgentMarkerPulse: {
-    position: "absolute",
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(239, 68, 68, 0.25)",
-  },
-  urgentMarker: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.danger,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: Colors.white,
-    shadowColor: Colors.danger,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  urgentMarkerLabel: {
-    position: "absolute",
-    top: -20,
-    backgroundColor: Colors.danger,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  urgentMarkerText: {
-    fontSize: 8,
-    fontFamily: "Inter_700Bold",
-    color: Colors.white,
-    letterSpacing: 1,
-  },
-  urgentRouteSeg: {
-    position: "absolute",
-    top: "30%",
-    left: "20%",
-    width: "40%",
-    height: "30%",
-  },
-  urgentRouteLineV: {
-    position: "absolute",
-    top: 0,
-    left: "30%",
-    width: 3,
-    height: "60%",
-    backgroundColor: Colors.danger,
-    borderRadius: 2,
-    opacity: 0.5,
-  },
-  urgentRouteLineH: {
-    position: "absolute",
-    top: "30%",
-    left: 0,
-    width: "55%",
-    height: 3,
-    backgroundColor: Colors.danger,
-    borderRadius: 2,
-    opacity: 0.5,
-  },
-  etaUrgentBadge: {
-    backgroundColor: Colors.danger + "18",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  etaUrgentText: {
-    fontSize: 10,
-    fontFamily: "Inter_700Bold",
-    color: Colors.danger,
-  },
-});
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -384,137 +295,30 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
   },
-  mapPlaceholder: {
-    flex: 1,
-    backgroundColor: "#E8EEF4",
-    position: "relative",
-    overflow: "hidden",
-  },
-  mapGrid: {
+  sidebarToggle: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  mapGridLine: {
-    width: "25%",
-    height: "25%",
-    borderWidth: 0.5,
-    borderColor: "rgba(37, 99, 235, 0.08)",
-  },
-  routeLine: {
-    position: "absolute",
-    top: "30%",
-    left: "20%",
-    width: 3,
-    height: "40%",
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-    opacity: 0.6,
-  },
-  routeLineH: {
-    position: "absolute",
-    top: "50%",
-    left: "20%",
-    width: "50%",
-    height: 3,
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
-    opacity: 0.6,
-  },
-  startMarker: {
-    position: "absolute",
-    top: "25%",
-    left: "16%",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.success,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  endMarker: {
-    position: "absolute",
-    top: "45%",
-    left: "66%",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.danger,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  fuelMarker: {
-    position: "absolute",
-    top: "38%",
-    left: "40%",
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.orange,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  fuelLabel: {
-    position: "absolute",
-    top: -22,
-    backgroundColor: Colors.orange,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  fuelLabelText: {
-    fontSize: 9,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.white,
-  },
-  mapOverlayTop: {
-    position: "absolute",
-    top: 16,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  etaBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    left: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: Colors.white,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
+    zIndex: 10,
   },
-  etaText: {
-    fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.textPrimary,
-  },
-  sidebarToggle: {
+  topRight: {
     position: "absolute",
-    left: 16,
+    right: 16,
+    flexDirection: "row",
+    gap: 8,
+    zIndex: 10,
+  },
+  topIconBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -575,13 +379,19 @@ const styles = StyleSheet.create({
   },
   sheetHandle: {
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 10,
+    gap: 4,
   },
   handleBar: {
     width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: "#D1D5DB",
+  },
+  slideHint: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: Colors.darkGrey,
   },
   sheetContent: {
     paddingHorizontal: 20,
@@ -591,7 +401,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 18,
+    marginBottom: 16,
   },
   orderLive: {
     flexDirection: "row",
@@ -620,13 +430,17 @@ const styles = StyleSheet.create({
     color: Colors.darkGrey,
   },
   detailGrid: {
-    gap: 16,
-    marginBottom: 20,
+    gap: 14,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: "row",
+    gap: 12,
   },
   detailItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 14,
+    gap: 12,
   },
   detailLabel: {
     fontSize: 11,
@@ -638,6 +452,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: "Inter_600SemiBold",
     color: Colors.textPrimary,
+  },
+  contactRow: {
+    marginBottom: 14,
+  },
+  contactBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primaryLight,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  contactBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.primary,
   },
   actionRow: {
     flexDirection: "row",

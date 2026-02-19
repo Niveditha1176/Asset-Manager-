@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 
 - **Runtime**: Node.js with Express 5, written in TypeScript (`server/index.ts`)
 - **API Pattern**: Routes registered in `server/routes.ts` with `/api` prefix convention. Currently minimal — the route file creates an HTTP server but has no application routes yet
-- **Storage Layer**: Abstracted via `IStorage` interface in `server/storage.ts`. Currently uses `MemStorage` (in-memory Map) for users. Designed to be swapped for database-backed implementation
+- **Storage Layer**: Abstracted via `IStorage` interface in `server/storage.ts`. Uses `DatabaseStorage` backed by PostgreSQL via Drizzle ORM
 - **CORS**: Dynamic CORS setup supporting Replit dev/deployment domains and localhost origins for Expo web development
 - **Build**: Server builds with esbuild (`server:build` script) to `server_dist/`
 - **Static Serving**: Production mode serves Expo web static build; landing page template at `server/templates/landing-page.html`
@@ -35,7 +35,9 @@ Preferred communication style: Simple, everyday language.
 ### Database Schema (Drizzle ORM + PostgreSQL)
 
 - **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Schema**: Defined in `shared/schema.ts` — currently only a `users` table with `id` (UUID, auto-generated), `username` (unique text), and `password` (text)
+- **Schema**: Defined in `shared/schema.ts` — `users` table with `id` (UUID, auto-generated), `username` (unique text), `password` (text), `name`, `companyName`, `employeeId`, `vehicleNo`, `vehicleType`, `fuelType`, `capacity`, `phoneNo`
+- **Auth**: Login/signup API at `/api/auth/login` and `/api/auth/signup`. Test user "nive" (password: 102938) seeded with Chennai driver profile
+- **Auth Context**: `lib/auth-context.tsx` manages user state via AsyncStorage persistence, provides login/signup/logout functions
 - **Validation**: drizzle-zod generates Zod schemas from Drizzle table definitions (`insertUserSchema`)
 - **Migrations**: Output to `./migrations/` directory, managed via `drizzle-kit push` command
 - **Connection**: Expects `DATABASE_URL` environment variable for PostgreSQL connection

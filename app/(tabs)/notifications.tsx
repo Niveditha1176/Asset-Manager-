@@ -59,6 +59,16 @@ function NotificationItem({
     }
   };
 
+  const handleSwipeAction = () => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (notification.read) {
+      onDismiss(notification.id);
+    } else {
+      onAcknowledge(notification.id);
+      translateX.value = withTiming(0, { duration: 200 });
+    }
+  };
+
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       if (e.translationX < 0) {
@@ -73,16 +83,6 @@ function NotificationItem({
         translateX.value = withTiming(0, { duration: 200 });
       }
     });
-
-  const handleSwipeAction = () => {
-    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (notification.read) {
-      onDismiss(notification.id);
-    } else {
-      onAcknowledge(notification.id);
-      translateX.value = withTiming(0, { duration: 200 });
-    }
-  };
 
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
