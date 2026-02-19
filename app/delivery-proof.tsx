@@ -60,14 +60,9 @@ export default function DeliveryProofScreen() {
     ]).start();
 
     setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(popupScale, { toValue: 0.8, duration: 200, useNativeDriver: true }),
-        Animated.timing(popupOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start(() => {
-        setShowPopup(false);
-        router.replace("/(tabs)/");
-      });
-    }, 3000);
+      setShowPopup(false);
+      router.replace("/(tabs)/");
+    }, 2500);
   };
 
   return (
