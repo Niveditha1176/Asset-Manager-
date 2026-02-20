@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,8 +6,9 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  Alert,
   Platform,
+  Modal,
+  Animated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -27,16 +28,55 @@ export default function FormsScreen() {
   const [otFrom, setOtFrom] = useState("");
   const [otTo, setOtTo] = useState("");
 
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupType, setPopupType] = useState<"leave" | "overtime">("leave");
+  const [popupDetails, setPopupDetails] = useState({ date: "", reason: "", from: "", to: "" });
+  const popupScale = useRef(new Animated.Value(0)).current;
+  const popupOpacity = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(0)).current;
+
   const webTopInset = Platform.OS === "web" ? 67 : 0;
+
+  const showConfirmation = (type: "leave" | "overtime") => {
+    setPopupType(type);
+    if (type === "leave") {
+      setPopupDetails({ date: leaveDate || "Not specified", reason: leaveReason || "Not specified", from: "", to: "" });
+    } else {
+      setPopupDetails({ date: "", reason: "", from: otFrom || "Not specified", to: otTo || "Not specified" });
+    }
+    setShowPopup(true);
+    popupScale.setValue(0);
+    popupOpacity.setValue(0);
+    checkScale.setValue(0);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(popupScale, { toValue: 1, friction: 6, tension: 100, useNativeDriver: true }),
+        Animated.timing(popupOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]),
+      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      setShowPopup(false);
+      if (type === "leave") {
+        setLeaveDate("");
+        setLeaveReason("");
+      } else {
+        setOtFrom("");
+        setOtTo("");
+      }
+    }, 3000);
+  };
 
   const handleGenerateTicket = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Ticket Generated", `Leave request for ${leaveDate || "selected date"} has been submitted.`);
+    showConfirmation("leave");
   };
 
   const handleRequestOvertime = () => {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Overtime Requested", `Request for ${otFrom} to ${otTo} has been submitted.`);
+    showConfirmation("overtime");
   };
 
   return (
@@ -218,6 +258,80 @@ export default function FormsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={showPopup} transparent animationType="none">
+        <View style={styles.popupOverlay}>
+          <Animated.View
+            style={[
+              styles.popupCard,
+              { opacity: popupOpacity, transform: [{ scale: popupScale }] },
+            ]}
+          >
+            <Animated.View
+              style={[
+                styles.popupCheckCircle,
+                { backgroundColor: popupType === "leave" ? Colors.primary : Colors.warning },
+                { transform: [{ scale: checkScale }] },
+              ]}
+            >
+              <Feather name="check" size={32} color={Colors.white} />
+            </Animated.View>
+
+            <Text style={styles.popupTitle}>
+              {popupType === "leave" ? "Leave Ticket Dispatched" : "Overtime Ticket Dispatched"}
+            </Text>
+            <Text style={styles.popupSubtitle}>Sent to Admin Successfully</Text>
+
+            <View style={styles.popupDivider} />
+
+            <View style={styles.popupDetails}>
+              <View style={styles.popupRow}>
+                <Text style={styles.popupLabel}>Type</Text>
+                <Text style={styles.popupValue}>
+                  {popupType === "leave" ? "Leave Application" : "Overtime Request"}
+                </Text>
+              </View>
+
+              {popupType === "leave" ? (
+                <>
+                  <View style={styles.popupRow}>
+                    <Text style={styles.popupLabel}>Date</Text>
+                    <Text style={styles.popupValue}>{popupDetails.date}</Text>
+                  </View>
+                  <View style={styles.popupRow}>
+                    <Text style={styles.popupLabel}>Reason</Text>
+                    <Text style={styles.popupValue}>{popupDetails.reason}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.popupRow}>
+                    <Text style={styles.popupLabel}>From</Text>
+                    <Text style={styles.popupValue}>{popupDetails.from}</Text>
+                  </View>
+                  <View style={styles.popupRow}>
+                    <Text style={styles.popupLabel}>To</Text>
+                    <Text style={styles.popupValue}>{popupDetails.to}</Text>
+                  </View>
+                </>
+              )}
+
+              <View style={styles.popupRow}>
+                <Text style={styles.popupLabel}>Status</Text>
+                <View style={styles.popupBadge}>
+                  <Feather name="send" size={12} color={Colors.white} />
+                  <Text style={styles.popupBadgeText}>Dispatched to Admin</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.popupFooter}>
+              <Feather name="clock" size={14} color={Colors.darkGrey} />
+              <Text style={styles.popupFooterText}>This popup will close automatically...</Text>
+            </View>
+          </Animated.View>
+        </View>
+      </Modal>
 
       <VoiceBotFAB />
     </View>
@@ -402,5 +516,98 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_700Bold",
     color: Colors.white,
+  },
+  popupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  popupCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 24,
+    padding: 32,
+    width: "100%",
+    maxWidth: 360,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  popupCheckCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  popupTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.textPrimary,
+    textAlign: "center",
+  },
+  popupSubtitle: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.success,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  popupDivider: {
+    width: "100%",
+    height: 1,
+    backgroundColor: Colors.light.border,
+    marginVertical: 16,
+  },
+  popupDetails: {
+    width: "100%",
+    gap: 12,
+  },
+  popupRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  popupLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    color: Colors.darkGrey,
+  },
+  popupValue: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textPrimary,
+    maxWidth: "60%",
+    textAlign: "right",
+  },
+  popupBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.success,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  popupBadgeText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.white,
+  },
+  popupFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 20,
+  },
+  popupFooterText: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.darkGrey,
   },
 });
