@@ -2,7 +2,7 @@
 
 A production-ready mobile-first driver application for urban logistics, built with **Expo (React Native)** and **Express.js**. FleetDrive helps delivery drivers manage routes, track deliveries, capture proof, report exceptions, log fuel stops, and handle HR operations — all from a single, polished mobile interface.
 
-## Screenshots & Key Screens
+## Key Points 
 
 | Welcome & Login | Home Dashboard | Map Navigation |
 |---|---|---|
@@ -190,36 +190,6 @@ npm run expo:dev
 - **Mobile**: Scan the QR code from the Expo dev server using the Expo Go app
 - **Login**: Use username `nive` and password `102938`
 
-## Data & Locations
-
-All app data uses real Chennai, Tamil Nadu locations:
-
-| Location | Used For |
-|---|---|
-| Teynampet, Chennai 600018 | En route delivery (Priya Lakshmi) |
-| Anna Nagar, Chennai 600040 | Upcoming delivery (Karthik Suresh) |
-| Besant Nagar, Chennai 600090 | Upcoming delivery (Meena Venkatesh) |
-| Mylapore, Chennai 600004 | Upcoming delivery (Ravi Chandran) |
-| T. Nagar, Chennai 600017 | Completed delivery |
-| Adyar, Chennai 600020 | Completed delivery |
-| Velachery, Chennai 600042 | Completed delivery |
-| Guindy, Chennai 600032 | Fuel stop (HP Petrol) |
-| Ashok Nagar, Chennai 600083 | Fuel stop (Indian Oil) |
-
-Driver vehicle: **TN-09-BZ-4821** (Mini Truck, Diesel, 500kg capacity)
-
-## Color System
-
-| Color | Hex | Usage |
-|---|---|---|
-| Primary Blue | `#2563EB` | Primary actions, links, en route indicators |
-| Success Green | `#16A34A` | Completed orders, confirmations |
-| Warning Yellow | `#F59E0B` | Upcoming orders, caution states |
-| Danger Red | `#DC2626` | Urgent badges, exceptions, LIVE indicator |
-| Orange | `#EA580C` | Fuel stops, fuel-related actions |
-| Text Primary | `#1F2937` | Main text |
-| Text Secondary | `#6B7280` | Secondary/label text |
-| Light Grey | `#F8FAFC` | Background |
 
 ## API Endpoints
 
@@ -228,16 +198,8 @@ Driver vehicle: **TN-09-BZ-4821** (Mini Truck, Diesel, 500kg capacity)
 | POST | `/api/auth/login` | Authenticate user with username/password |
 | POST | `/api/auth/signup` | Register new driver account |
 
-## Scripts
 
-| Command | Description |
-|---|---|
-| `npm run expo:dev` | Start Expo development server |
-| `npm run server:dev` | Start Express backend with hot reload |
-| `npm run server:build` | Build server for production |
-| `npm run db:push` | Push Drizzle schema to database |
-| `npm start` | Start production server |
 
 ## License
 
-This project is a prototype/demo application for urban logistics driver operations.
+for academic and project purposes
