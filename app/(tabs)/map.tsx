@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Platform,
   Linking,
+  Animated as RNAnimated,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -30,10 +31,32 @@ const SHEET_MAX = SCREEN_HEIGHT * 0.55;
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { orders, fuelStopVisible, urgentMarkerVisible, urgentOrder } = useApp();
+  const { orders, fuelStopVisible, urgentMarkerVisible, urgentOrder, breakRequested, setBreakRequested } = useApp();
   const { user, logout } = useAuth();
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [toastMsg, setToastMsg] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastAnim = useRef(new RNAnimated.Value(-100)).current;
+  const toastTimer = useRef<any>(null);
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToastMsg(msg);
+    setToastVisible(true);
+    toastAnim.setValue(-100);
+    RNAnimated.spring(toastAnim, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }).start();
+    toastTimer.current = setTimeout(() => {
+      RNAnimated.timing(toastAnim, { toValue: -100, duration: 250, useNativeDriver: true }).start(() => setToastVisible(false));
+    }, 2500);
+  }, [toastAnim]);
+
+  const toggleBreak = useCallback((val: boolean) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBreakRequested(val);
+    showToast(val ? "Break requested - dispatch notified" : "Break request cancelled");
+  }, [showToast, setBreakRequested]);
 
   const enRouteOrder = orders.find((o) => o.status === "en_route");
   const webTopInset = Platform.OS === "web" ? 67 : 0;
@@ -131,6 +154,9 @@ export default function MapScreen() {
         <View style={[styles.topRight, { top: insets.top + 16 + webTopInset }]}>
           <Pressable style={styles.topIconBtn} onPress={() => router.push("/fuel-log")}>
             <Ionicons name="flame-outline" size={20} color={Colors.orange} />
+          </Pressable>
+          <Pressable style={styles.topIconBtn} onPress={() => toggleBreak(!breakRequested)}>
+            <Ionicons name="cafe-outline" size={20} color={breakRequested ? Colors.success : Colors.darkGrey} />
           </Pressable>
           <Pressable
             style={styles.topIconBtn}
@@ -280,6 +306,22 @@ export default function MapScreen() {
           )}
         </ScrollView>
       </Animated.View>
+
+      {toastVisible && (
+        <RNAnimated.View
+          style={[
+            styles.toastBanner,
+            { top: insets.top + 16 + webTopInset, transform: [{ translateY: toastAnim }] },
+          ]}
+        >
+          <View style={styles.toastContent}>
+            <View style={[styles.toastIconCircle, { backgroundColor: Colors.success + "20" }]}>
+              <Ionicons name="cafe" size={16} color={Colors.success} />
+            </View>
+            <Text style={styles.toastText}>{toastMsg}</Text>
+          </View>
+        </RNAnimated.View>
+      )}
 
       <VoiceBotFAB />
     </View>
@@ -510,5 +552,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_500Medium",
     color: Colors.darkGrey,
+  },
+  toastBanner: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    borderRadius: 14,
+    backgroundColor: Colors.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: Colors.success + "30",
+  },
+  toastContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    gap: 12,
+  },
+  toastIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textPrimary,
   },
 });
