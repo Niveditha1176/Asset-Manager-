@@ -190,6 +190,8 @@ npm run expo:dev
 - **Mobile**: Scan the QR code from the Expo dev server using the Expo Go app
 - **Login**: Use username `nive` and password `102938`
 
+### Demo videos 
+https://drive.google.com/drive/folders/1AX9AmM9l8YoSfWFwdXc9gYm_2xWCLzYq?usp=sharing
 
 ## API Endpoints
 
